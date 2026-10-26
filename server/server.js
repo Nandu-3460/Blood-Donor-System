@@ -1,7 +1,7 @@
 const express = require('express');
 const cors = require('cors');
 const dotenv = require('dotenv');
-const { connectDB, getDBStatus } = require('./config/db');
+const { connectDB, getDBStatus, getDBError } = require('./config/db');
 const errorHandler = require('./middleware/errorHandler');
 
 // Load environment variables
@@ -21,13 +21,20 @@ app.use(express.urlencoded({ extended: true }));
 
 // Health Check API
 app.get('/api/health', (req, res) => {
+  const isConnected = getDBStatus();
+  const dbError = getDBError();
   res.status(200).json({
     status: 'online',
-    databaseConnected: getDBStatus(),
+    databaseConnected: isConnected,
     timestamp: new Date().toISOString(),
-    message: getDBStatus()
+    diagnostics: {
+      hasMongoUri: Boolean(process.env.MONGODB_URI && !process.env.MONGODB_URI.includes('YOUR_USERNAME')),
+      hasJwtSecret: Boolean(process.env.JWT_SECRET),
+      lastError: dbError,
+    },
+    message: isConnected
       ? 'Blood Donor Finder API and MongoDB are fully operational.'
-      : 'API is running, but MongoDB is not connected. Configure MONGODB_URI in server/.env.',
+      : dbError || 'API is running, but MongoDB is not connected. Configure MONGODB_URI in server/.env.',
   });
 });
 
